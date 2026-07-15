@@ -16,6 +16,26 @@ services:
       # land under /app/.local for the odysseus user. Persist them so a
       # container recreate does not silently remove installed serve engines.
       - ${APP_DATA_DIR:-./data}/local:/app/.local:z
+      # Docker socket — lets Cookbook launch commands like
+      # `docker exec ollama-rocm ollama show <tag>` reach the host's
+      # Docker daemon (and sibling containers like ollama-rocm /
+      # ollama-test). The in-container user needs to be in the
+      # socket's owning group — see `group_add` below; the GID
+      # there must match the host's `docker` group (defaults to 963
+      # on Debian, 999 on Ubuntu — override via env if yours differs).
+      - /var/run/docker.sock:/var/run/docker.sock
+      # MemPalace data
+      - ${HOST_MEMPALACE_DIR}:${MEMPALACE_PATH}:cached
+      # MemPalace MCP bridge source
+      - ${HOST_MEMPALACE_MCP_BRIDGE_DIR}:${MEMPALACE_MCP_BRIDGE_PATH}:cached
+      # RSM MCP bridge source
+      - ${HOST_RSM_MCP_DIR}:${RSM_MCP_PATH}:cached
+      # RSM store (embeddings, vector indexes, etc.)
+      - ${RSM_STORE_DIR}:${RSM_HOME}:cached
+      # Agentic Factory bootstrap CLI
+      - ${HOST_AGENTIC_BOOTSTRAP_DIR}:${AGENTIC_BOOTSTRAP_PATH}:cached
+    group_add:
+      - "${DOCKER_GID:-963}"
     extra_hosts:
       # Lets the container reach local services on the Docker host, including
       # Ollama at http://host.docker.internal:11434.
@@ -70,6 +90,14 @@ services:
       # Find yours with:  id -u  /  id -g
       - PUID=${PUID:-1000}
       - PGID=${PGID:-1000}
+
+      # MemPalace config paths. These are bind-mounted from the host so you can
+      - MEMPALACE_MCP_BRIDGE_PATH=${MEMPALACE_MCP_BRIDGE_PATH}
+      - MEMPALACE_PATH=${MEMPALACE_PATH}
+      - MEMPALACE_PALACE_PATH=${MEMPALACE_PALACE_PATH}
+      # RSM config paths. Also bind-mounted from the host since RSM needs to read/write them.
+      - RSM_MCP_PATH=${RSM_MCP_PATH}
+      - RSM_HOME=${RSM_HOME}
     depends_on:
       searxng:
         condition: service_healthy
@@ -130,7 +158,11 @@ services:
       - SETUID
       - DAC_OVERRIDE
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/', timeout=5).read(1)\""]
+      test:
+        [
+          "CMD-SHELL",
+          'python -c "import urllib.request; urllib.request.urlopen(''http://localhost:8080/'', timeout=5).read(1)"',
+        ]
       interval: 5s
       timeout: 6s
       retries: 20

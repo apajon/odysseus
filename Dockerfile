@@ -57,15 +57,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ARG DOCKER_CLI_VERSION=27.5.1
 RUN ARCH="$(dpkg --print-architecture)" \
     && case "$ARCH" in \
-         amd64) DARCH=x86_64 ;; \
-         arm64) DARCH=aarch64 ;; \
-         *) echo "unsupported arch $ARCH"; exit 1 ;; \
-       esac \
+    amd64) DARCH=x86_64 ;; \
+    arm64) DARCH=aarch64 ;; \
+    *) echo "unsupported arch $ARCH"; exit 1 ;; \
+    esac \
     && curl -fsSL "https://download.docker.com/linux/static/stable/${DARCH}/docker-${DOCKER_CLI_VERSION}.tgz" \
-       -o /tmp/docker.tgz \
+    -o /tmp/docker.tgz \
     && tar -xzf /tmp/docker.tgz -C /tmp \
     && install -m 0755 /tmp/docker/docker /usr/local/bin/docker \
     && rm -rf /tmp/docker /tmp/docker.tgz
+
+# Install uv / uvx globally for MCP servers
+RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh \
+    && chmod +x /usr/local/bin/uv /usr/local/bin/uvx \
+    && uv --version \
+    && uvx --version
 
 WORKDIR /app
 
