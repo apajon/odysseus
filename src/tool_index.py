@@ -507,6 +507,23 @@ class ToolIndex:
         frozenset({"write a", "create a doc", "draft", "compose", "poem", "story",
                    "essay", "outline", "letter"}):
             {"create_document", "edit_document", "update_document"},
+
+        # Technical file/code resources (French + English).
+        # Inspection-only: bash, read_file, grep, glob, ls, get_workspace.
+        # No write_file, edit_file, python, manage_bg_jobs — those require
+        # stronger intent from domain detection or RAG retrieval.
+        #
+        # Used in two paths with different matching semantics:
+        #   get_tools_for_query() → \b word boundary (safe against collisions)
+        #   agent_loop fallback     → substring kw in query (rare, RAG failure)
+        frozenset({
+            "fichier", "fichiers", "dossier", "dossiers",
+            "répertoire", "répertoires", "repo", "repository",
+            "codebase", "dépôt", "dépôts", "git", "grep",
+            "terminal", "shell", "bash",
+        }): {
+            "bash", "read_file", "grep", "glob", "ls", "get_workspace",
+        },
     }
 
     def get_tools_for_query(
